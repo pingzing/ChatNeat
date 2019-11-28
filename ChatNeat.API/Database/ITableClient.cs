@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace ChatNeat.Database
+namespace ChatNeat.API.Database
 {
     public interface ITableClient
     {

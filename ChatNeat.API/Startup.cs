@@ -1,4 +1,4 @@
-﻿using ChatNeat.Database;
+﻿using ChatNeat.API.Database;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

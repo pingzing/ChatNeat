@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace ChatNeat.Database
+namespace ChatNeat.API.Database
 {
     public class TableNames
     {

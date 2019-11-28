@@ -1,5 +1,5 @@
-﻿using ChatNeat.Database.Entities;
-using ChatNeat.Database.Extensions;
+﻿using ChatNeat.API.Database.Entities;
+using ChatNeat.API.Database.Extensions;
 using ChatNeat.Models;
 using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Extensions.Logging;
@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ChatNeat.Database
+namespace ChatNeat.API.Database
 {
     // Notes to self on resilience and performance:
     // Table Storage has a retry policy which, by default, retries most transient failures
