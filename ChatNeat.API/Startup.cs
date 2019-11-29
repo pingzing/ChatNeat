@@ -17,7 +17,7 @@ namespace ChatNeat.API
             builder.Services.AddScoped<IChatNeatTableClient, ChatNeatTableClient>(x =>
             {
                 var logger = x.GetService<ILogger<ChatNeatTableClient>>();
-                string connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage", EnvironmentVariableTarget.Process);
+                string connectionString = Environment.GetEnvironmentVariable("CHATNEAT_TABLE_STORAGE_CONNECTION_STRING", EnvironmentVariableTarget.Process);
                 CloudStorageAccount storageAccount = CloudStorageAccount.Parse(connectionString);
                 var tableClient = storageAccount.CreateCloudTableClient();
                 return new ChatNeatTableClient(tableClient, logger);

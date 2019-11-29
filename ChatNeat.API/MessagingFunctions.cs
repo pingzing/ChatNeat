@@ -39,6 +39,7 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
+        [OpenApiRequestBody("application/json", typeof(MessagePayload))]
         [FunctionName("sendmessage")]
         public async Task<IActionResult> SendMessage(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]MessagePayload payload,

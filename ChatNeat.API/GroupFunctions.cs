@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -31,6 +32,7 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
+        [OpenApiResponseBody(HttpStatusCode.OK, "application/json", typeof(Group[]))]
         [FunctionName("getgroupslist")]
         public async Task<IActionResult> GetGroupsList(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get")]HttpRequest req)
@@ -41,10 +43,13 @@ namespace ChatNeat.API
                 _logger.LogError("Failed to retrieve any groups.");
                 return new InternalServerErrorResult();
             }
-            return new OkObjectResult(groups);
+            return new OkObjectResult(groups.ToArray());
         }
 
         [OpenApiOperation]
+        [OpenApiRequestBody("text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.OK, "application/json", typeof(Group))]
+        [OpenApiResponseBody(HttpStatusCode.BadRequest, "text/plain", typeof(string))]
         [FunctionName("addgroup")]
         public async Task<IActionResult> CreateGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]string newGroupName)
@@ -60,6 +65,9 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
+        [OpenApiRequestBody("text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.OK, "text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.BadRequest, "text/plain", typeof(string))]
         [FunctionName("deletegroup")]
         public async Task<IActionResult> DeleteGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "delete")]string groupId,
@@ -87,6 +95,11 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
+        [OpenApiRequestBody("application/json", typeof(JoinGroupRequest))]
+        [OpenApiResponseBody(HttpStatusCode.OK, "text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.BadRequest, "text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.NotFound, "text/plain", typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.InternalServerError, "text/plain", typeof(string))]
         [FunctionName("joingroup")]
         public async Task<IActionResult> JoinGroup(
              [HttpTrigger(AuthorizationLevel.Anonymous, "post")]JoinGroupRequest request,
@@ -118,6 +131,7 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
+        [OpenApiRequestBody("application/json", typeof(LeaveGroupRequest))]
         [FunctionName("leavegroup")]
         public async Task<IActionResult> LeaveGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]LeaveGroupRequest request)
