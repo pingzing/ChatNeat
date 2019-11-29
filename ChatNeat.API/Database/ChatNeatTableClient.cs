@@ -65,7 +65,7 @@ namespace ChatNeat.API.Database
 
         public async Task<IEnumerable<User>> GetUsers(Guid groupId)
         {
-
+            throw new NotImplementedException();
         }
 
         public async Task<Group> CreateGroup(string newGroupName)
