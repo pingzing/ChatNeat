@@ -65,7 +65,22 @@ namespace ChatNeat.API.Database
 
         public async Task<IEnumerable<User>> GetUsers(Guid groupId)
         {
-            throw new NotImplementedException();
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {groupId}.");
+                return null;
+            }
+
+            TableQuery<TableEntityAdapter<UserEntity>> query = new TableQuery<TableEntityAdapter<UserEntity>>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, PartitionNames.User));
+
+            IEnumerable<TableEntityAdapter<UserEntity>> users = await groupTable.ExecuteQueryAsync(query);
+            return users.Select(x => new User
+            {
+                Id = Guid.Parse(x.RowKey),
+                Name = x.OriginalEntity.Name
+            });
         }
 
         public async Task<Group> CreateGroup(string newGroupName)
@@ -160,10 +175,25 @@ namespace ChatNeat.API.Database
             return ServiceResult.Success;
         }
 
+        public async Task<IEnumerable<Guid>> GetGroups(Guid userId)
+        {
+            var userTable = _tableClient.GetTableReference(userId.ToIdString());
+            if (!await userTable.ExistsAsync())
+            {
+                _logger.LogError($"No user with the ID {userId} found.");
+                return null;
+            }
+
+            TableQuery<DynamicTableEntity> query = new TableQuery<DynamicTableEntity>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, PartitionNames.Group));
+            return (await userTable.ExecuteQueryAsync(query))
+                .Select(x => Guid.Parse(x.RowKey));
+        }
+
         public async Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId)
         {
             var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
-            if (!(await groupTable.ExistsAsync()))
+            if (!await groupTable.ExistsAsync())
             {
                 _logger.LogError($"Could not find any group with ID {groupId}.");
                 return ServiceResult.NotFound;
@@ -189,6 +219,33 @@ namespace ChatNeat.API.Database
             var groupMetadata = await GetGroupMetadata(groupId);
             await AddOrUpdateToGroupsList(groupMetadata, groupId, groupCount);
             await RemoveFromUserGroups(userId, groupId);
+            return ServiceResult.Success;
+        }
+
+        public async Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId)
+        {
+            var userTable = _tableClient.GetTableReference(userId.ToIdString());
+            if (!await userTable.ExistsAsync())
+            {
+                _logger.LogError($"User table for {userId} does not exist.");
+                return ServiceResult.NotFound;
+            }
+            TableOperation existsCheckOp = TableOperation.Retrieve<DynamicTableEntity>(PartitionNames.Group, groupId.ToIdString());
+            TableResult existsResult = await userTable.ExecuteAsync(existsCheckOp);
+            if (!(existsResult.Result is DynamicTableEntity entity))
+            {
+                // Already deleted, bail out.
+                return ServiceResult.Success;
+            }
+
+            TableOperation deleteOp = TableOperation.Delete(entity);
+            TableResult deleteResult = await userTable.ExecuteAsync(deleteOp);
+            if (deleteResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Failed to delete group {groupId} from user {userId}. Status code: {deleteResult.HttpStatusCode}");
+                return ServiceResult.ServerError;
+            }
+
             return ServiceResult.Success;
         }
 
@@ -226,34 +283,6 @@ namespace ChatNeat.API.Database
 
             return ServiceResult.Success;
         }
-
-        public async Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId)
-        {
-            var userTable = _tableClient.GetTableReference(userId.ToIdString());
-            if (!await userTable.ExistsAsync())
-            {
-                _logger.LogError($"User table for {userId} does not exist.");
-                return ServiceResult.NotFound;
-            }
-            TableOperation existsCheckOp = TableOperation.Retrieve<DynamicTableEntity>(PartitionNames.Group, groupId.ToIdString());
-            TableResult existsResult = await userTable.ExecuteAsync(existsCheckOp);
-            if (!(existsResult.Result is DynamicTableEntity entity))
-            {
-                // Already deleted, bail out.
-                return ServiceResult.Success;
-            }
-
-            TableOperation deleteOp = TableOperation.Delete(entity);
-            TableResult deleteResult = await userTable.ExecuteAsync(deleteOp);
-            if (deleteResult.HttpStatusCode != 204)
-            {
-                _logger.LogError($"Failed to delete group {groupId} from user {userId}. Status code: {deleteResult.HttpStatusCode}");
-                return ServiceResult.ServerError;
-            }
-
-            return ServiceResult.Success;
-        }
-
 
         private async Task AddOrUpdateToGroupsList(GroupMetadata group, Guid groupId, int count)
         {

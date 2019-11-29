@@ -26,6 +26,7 @@ namespace ChatNeat.API.Database
         /// <param name="groupId">ID of the group to add the user to.</param>
         /// <returns>True if successful, false otherwise.</returns>
         Task<ServiceResult> AddUserToGroup(User user, Guid groupId);
+        Task<IEnumerable<Guid>> GetGroups(Guid userId);
         Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId);
         Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId);
         Task<ServiceResult> StoreMessage(MessagePayload message);

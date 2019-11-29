@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using ChatNeat.API.Database;
 using ChatNeat.API.Database.Extensions;
@@ -55,10 +56,27 @@ namespace ChatNeat.API.Services
             return _tableClient.GetGroupList();
         }
 
-        public Task<IEnumerable<Group>> GetUserMembership(Guid userId)
+        public async Task<IEnumerable<Group>> GetUserMembership(Guid userId)
         {
-            // TODO: Get all groups a user belongs to
-            throw new NotImplementedException();
+            var allGroupsTask = _tableClient.GetGroupList();
+            var userGroupsTask = _tableClient.GetGroups(userId);
+            await Task.WhenAll(allGroupsTask, userGroupsTask);
+            IEnumerable<Group> allGroups = allGroupsTask.Result;
+            IEnumerable<Guid> userGroups = userGroupsTask.Result;
+            if (allGroups == null)
+            {
+                _logger.LogError($"Unable to get all groups for user with ID {userId}");
+                return null;
+            }
+            if (userGroups == null)
+            {
+                _logger.LogError($"Unable to get group membership for user with ID {userId}");
+                return null;
+            }
+
+            return userGroups.Select(x => allGroups.SingleOrDefault(y => y.Id == x))
+                .Where(x => x != null);
+
         }
 
         public Task<ServiceResult> AddUserToGroup(User user, Guid groupId)

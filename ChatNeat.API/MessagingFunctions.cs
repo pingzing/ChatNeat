@@ -1,4 +1,5 @@
-﻿using ChatNeat.API.Database;
+﻿using Aliencube.AzureFunctions.Extensions.OpenApi.Attributes;
+using ChatNeat.API.Database;
 using ChatNeat.API.Database.Extensions;
 using ChatNeat.API.Services;
 using ChatNeat.Models;
@@ -28,20 +29,16 @@ namespace ChatNeat.API
             _logger = logger;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="req"></param>
-        /// <param name="info"></param>
-        /// <returns></returns>
+        [OpenApiOperation]
         [FunctionName("negotiate")]
         public SignalRConnectionInfo Negotiate(
-            [HttpTrigger(AuthorizationLevel.Anonymous)]HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get")]HttpRequest req,
             [SignalRConnectionInfo(HubName = ChatHubName)]SignalRConnectionInfo info)
         {
             return info;
         }
 
+        [OpenApiOperation]
         [FunctionName("sendmessage")]
         public async Task<IActionResult> SendMessage(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]MessagePayload payload,

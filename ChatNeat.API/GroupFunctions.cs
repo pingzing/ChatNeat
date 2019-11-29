@@ -1,4 +1,5 @@
-﻿using ChatNeat.API.Database;
+﻿using Aliencube.AzureFunctions.Extensions.OpenApi.Attributes;
+using ChatNeat.API.Database;
 using ChatNeat.API.Database.Extensions;
 using ChatNeat.API.Services;
 using ChatNeat.Models;
@@ -29,9 +30,10 @@ namespace ChatNeat.API
             _logger = logger;
         }
 
+        [OpenApiOperation]
         [FunctionName("getgroupslist")]
         public async Task<IActionResult> GetGroupsList(
-            [HttpTrigger(AuthorizationLevel.Anonymous)]HttpRequest req)
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get")]HttpRequest req)
         {
             var groups = await _chatService.GetGroupList();
             if (groups == null)
@@ -42,6 +44,7 @@ namespace ChatNeat.API
             return new OkObjectResult(groups);
         }
 
+        [OpenApiOperation]
         [FunctionName("addgroup")]
         public async Task<IActionResult> CreateGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]string newGroupName)
@@ -56,6 +59,7 @@ namespace ChatNeat.API
             return new OkObjectResult(addedGroup);
         }
 
+        [OpenApiOperation]
         [FunctionName("deletegroup")]
         public async Task<IActionResult> DeleteGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "delete")]string groupId,
@@ -82,7 +86,7 @@ namespace ChatNeat.API
             return new OkResult();
         }
 
-
+        [OpenApiOperation]
         [FunctionName("joingroup")]
         public async Task<IActionResult> JoinGroup(
              [HttpTrigger(AuthorizationLevel.Anonymous, "post")]JoinGroupRequest request,
@@ -113,6 +117,7 @@ namespace ChatNeat.API
             return new OkResult();
         }
 
+        [OpenApiOperation]
         [FunctionName("leavegroup")]
         public async Task<IActionResult> LeaveGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]LeaveGroupRequest request)
@@ -126,6 +131,7 @@ namespace ChatNeat.API
             };
         }
 
+        [OpenApiOperation]
         [FunctionName("reconnect")]
         public async Task<IActionResult> ReconnectToGroups(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]string userId,
