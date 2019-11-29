@@ -1,5 +1,6 @@
 ﻿using ChatNeat.API.Database.Entities;
 using ChatNeat.API.Database.Extensions;
+using ChatNeat.API.Services;
 using ChatNeat.Models;
 using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,27 @@ namespace ChatNeat.API.Database
     // Notes to self on resilience and performance:
     // Table Storage has a retry policy which, by default, retries most transient failures
     // (i.e., it won't retry a 404) with exponential backoff.
+    /*
+     * Table layout (roughly):
+     *  ALLGROUPS
+        [AllGroups - TotalCount] - TotalCount
+        [Group - <ID> ] - Name - Count - CreationTime
+
+        GROUPID (guid)
+        [ Metadata - Metadata ] - Name - CreationTime
+        [ User - <ID> ] - Name - LastSeenTime
+          ...etc...
+        [ Message - <ID> ] - Contents - Timestamp
+         ...etc...
+ 
+         USERID (guid)
+         [ Group - <GroupId> ]
+     */
     public class ChatNeatTableClient : IChatNeatTableClient
     {
+        // Business rule.
+        public const uint MaxGroupSize = 20;
+
         private readonly CloudTableClient _tableClient;
         private readonly ILogger<ChatNeatTableClient> _logger;
 
@@ -43,31 +63,224 @@ namespace ChatNeat.API.Database
             });
         }
 
-        private async Task AddToGroupsList(Group newGroup)
+        public async Task<IEnumerable<User>> GetUsers(Guid groupId)
+        {
+
+        }
+
+        public async Task<Group> CreateGroup(string newGroupName)
+        {
+            // Give the new group an ID. Ignore whatever we're given, we're creating a new group.
+            Guid newGroupId = Guid.NewGuid();
+            var groupTable = _tableClient.GetTableReference(newGroupId.ToIdString());
+            await groupTable.CreateAsync();
+
+            var metadata = new GroupMetadata { Name = newGroupName, CreationTime = DateTime.UtcNow };
+            TableOperation addMetadataOp = TableOperation.Insert(new TableEntityAdapter<GroupMetadata>(metadata, PartitionNames.Metadata, PartitionNames.Metadata));
+            TableResult addMetadataResult = await groupTable.ExecuteAsync(addMetadataOp);
+            if (addMetadataResult.Result is TableEntityAdapter<GroupMetadata> groupMetaData)
+            {
+                await AddOrUpdateToGroupsList(groupMetaData.OriginalEntity, newGroupId, 0);
+
+                _logger.LogInformation($"Group with ID {newGroupId} and name {groupMetaData.OriginalEntity.Name} added.");
+                return new Group
+                {
+                    Count = 0,
+                    CreationTime = groupMetaData.OriginalEntity.CreationTime,
+                    Id = newGroupId,
+                    Name = groupMetaData.OriginalEntity.Name
+                };
+            }
+            else
+            {
+                await groupTable.DeleteAsync();
+                _logger.LogError($"Unable to add table named {newGroupName} to database.");
+                return null;
+            }
+        }
+
+        public async Task<ServiceResult> DeleteGroup(Guid groupId)
+        {
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {groupId}.");
+                return ServiceResult.NotFound;
+            }
+
+            await groupTable.DeleteAsync(); // TODO: _can_ this fail? It can probably timeout, which likely throws an exception...
+            await DeleteFromGroupsList(groupId);
+            _logger.LogInformation($"Group with ID {groupId} deleted.");
+            return ServiceResult.Success;
+        }
+
+        public async Task<ServiceResult> AddUserToGroup(User user, Guid groupId)
+        {
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {groupId}.");
+                return ServiceResult.NotFound;
+            }
+
+            TableOperation getExistingUser = TableOperation.Retrieve<TableEntityAdapter<UserEntity>>(PartitionNames.User, user.Id.ToIdString());
+            TableResult existsResult = await groupTable.ExecuteAsync(getExistingUser);
+            if (existsResult.Result is TableEntityAdapter<UserEntity>)
+            {
+                // User already exists. We're done!
+                return ServiceResult.Success;
+            }
+
+            // Verify group isn't currently full.
+            int groupCount = await GetGroupCount(groupId);
+            if (groupCount >= MaxGroupSize)
+            {
+                _logger.LogInformation($"Unable to add user {user.Name}-{user.Id} to group ID {groupId}. Group already has {groupCount} users.");
+                return ServiceResult.InvalidArguments;
+            }
+
+            var userEntity = new TableEntityAdapter<UserEntity>(
+                new UserEntity
+                {
+                    Name = user.Name,
+                    LastSeen = DateTime.UtcNow
+                }, PartitionNames.User, user.Id.ToIdString());
+            TableOperation addUser = TableOperation.Insert(userEntity);
+            TableResult addResult = await groupTable.ExecuteAsync(addUser);
+            if (addResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Unable to add user {user.Name}-{user.Id} to group {groupId}. Result code: {addResult.HttpStatusCode}");
+                return ServiceResult.ServerError;
+            }
+
+            // User added. Update group count in AllGroups table
+            GroupMetadata metadata = await GetGroupMetadata(groupId);
+            await AddOrUpdateToGroupsList(metadata, groupId, groupCount + 1);
+            await AddToUserGroups(user.Id, groupId, DateTime.UtcNow);
+            return ServiceResult.Success;
+        }
+
+        public async Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId)
+        {
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {groupId}.");
+                return ServiceResult.NotFound;
+            }
+
+            TableOperation getExistingUser = TableOperation.Retrieve<TableEntityAdapter<UserEntity>>(PartitionNames.User, userId.ToIdString());
+            TableResult existsResult = await groupTable.ExecuteAsync(getExistingUser);
+            if (!(existsResult.Result is TableEntityAdapter<UserEntity> user))
+            {
+                _logger.LogError($"Could not find any user with ID {userId} in group with ID {groupId}");
+                return ServiceResult.NotFound;
+            }
+
+            TableOperation deleteUserOp = TableOperation.Delete(user);
+            TableResult deleteResult = await groupTable.ExecuteAsync(deleteUserOp);
+            if (deleteResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Failed to remove user {user.OriginalEntity.Name}-{userId} from group with ID {groupId}. Status code: {deleteResult.HttpStatusCode}");
+                return ServiceResult.ServerError;
+            }
+
+            int groupCount = await GetGroupCount(groupId);
+            var groupMetadata = await GetGroupMetadata(groupId);
+            await AddOrUpdateToGroupsList(groupMetadata, groupId, groupCount);
+            await RemoveFromUserGroups(userId, groupId);
+            return ServiceResult.Success;
+        }
+
+        public async Task<ServiceResult> StoreMessage(MessagePayload message)
+        {
+            var groupTable = _tableClient.GetTableReference(message.GroupId.ToIdString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {message.GroupId}.");
+                return ServiceResult.NotFound;
+            }
+
+            // Make sure the user belongs to the group
+            TableOperation getUserOp = TableOperation.Retrieve<TableEntityAdapter<UserEntity>>(PartitionNames.User, message.SenderId.ToIdString());
+            TableResult getUserResult = await groupTable.ExecuteAsync(getUserOp);
+            if (!(getUserResult.Result is TableEntityAdapter<UserEntity> user))
+            {
+                _logger.LogError($"User ID {message.SenderId} does not belong to group ID {message.GroupId}.");
+                return ServiceResult.NotFound;
+            }
+
+            Guid messageId = Guid.NewGuid();
+            var messageEntity = new TableEntityAdapter<MessageEntity>(new MessageEntity
+            {
+                Contents = message.Message,
+                Timestamp = DateTime.UtcNow
+            }, PartitionNames.Message, messageId.ToIdString());
+            TableOperation insertOp = TableOperation.Insert(messageEntity);
+            TableResult insertResult = await groupTable.ExecuteAsync(insertOp);
+            if (insertResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Failed to add message from sender {message.SenderId} to group {message.GroupId}. Status code: {insertResult.HttpStatusCode}");
+                return ServiceResult.ServerError;
+            }
+
+            return ServiceResult.Success;
+        }
+
+        public async Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId)
+        {
+            var userTable = _tableClient.GetTableReference(userId.ToIdString());
+            if (!await userTable.ExistsAsync())
+            {
+                _logger.LogError($"User table for {userId} does not exist.");
+                return ServiceResult.NotFound;
+            }
+            TableOperation existsCheckOp = TableOperation.Retrieve<DynamicTableEntity>(PartitionNames.Group, groupId.ToIdString());
+            TableResult existsResult = await userTable.ExecuteAsync(existsCheckOp);
+            if (!(existsResult.Result is DynamicTableEntity entity))
+            {
+                // Already deleted, bail out.
+                return ServiceResult.Success;
+            }
+
+            TableOperation deleteOp = TableOperation.Delete(entity);
+            TableResult deleteResult = await userTable.ExecuteAsync(deleteOp);
+            if (deleteResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Failed to delete group {groupId} from user {userId}. Status code: {deleteResult.HttpStatusCode}");
+                return ServiceResult.ServerError;
+            }
+
+            return ServiceResult.Success;
+        }
+
+
+        private async Task AddOrUpdateToGroupsList(GroupMetadata group, Guid groupId, int count)
         {
             var allGroupsTable = _tableClient.GetTableReference(TableNames.AllGroups);
 
             var groupEntry = new AllGroupsGroupEntry
             {
-                Name = newGroup.Name,
-                Count = newGroup.Count,
-                CreationTime = newGroup.CreationTime.UtcDateTime
+                Name = group.Name,
+                Count = count,
+                CreationTime = group.CreationTime
             };
-            var addToTableOp = TableOperation.Insert(
-                new TableEntityAdapter<AllGroupsGroupEntry>(groupEntry, PartitionNames.Group, newGroup.Id.ToString("N")));
-            TableResult result = await allGroupsTable.ExecuteAsync(addToTableOp);
-            if (!(result.Result is TableEntityAdapter<AllGroupsGroupEntry> addedEntry))
+            var addOrUpdateOperation = TableOperation.InsertOrReplace(
+                new TableEntityAdapter<AllGroupsGroupEntry>(groupEntry, PartitionNames.Group, groupId.ToIdString()));
+            TableResult result = await allGroupsTable.ExecuteAsync(addOrUpdateOperation);
+            if (!(result.Result is TableEntityAdapter<AllGroupsGroupEntry>))
             {
                 // This isn't fatal. We'll catch it next time we do a group update.
-                _logger.LogWarning($"Failed to update group list metadata table with new group: ID - {newGroup.Id}, Name - {newGroup.Name}");
+                _logger.LogWarning($"Failed to update group list metadata table with new group: ID - {groupId}, Name - {group.Name}. Status code: {result.HttpStatusCode}");
             }
         }
 
+        // Utility methods and helpers
         private async Task DeleteFromGroupsList(Guid groupId)
         {
             var allGroupsTable = _tableClient.GetTableReference(TableNames.AllGroups);
 
-            TableOperation getGroupOperation = TableOperation.Retrieve<TableEntityAdapter<AllGroupsGroupEntry>>(PartitionNames.Group, groupId.ToString("N"));
+            TableOperation getGroupOperation = TableOperation.Retrieve<TableEntityAdapter<AllGroupsGroupEntry>>(PartitionNames.Group, groupId.ToIdString());
             TableResult getResult = await allGroupsTable.ExecuteAsync(getGroupOperation);
             if (getResult.Result is TableEntityAdapter<AllGroupsGroupEntry> groupEntry)
             {
@@ -84,43 +297,55 @@ namespace ChatNeat.API.Database
             }
         }
 
-        public async Task<Group> AddGroup(Group newGroup)
+        private async Task<int> GetGroupCount(Guid groupId)
         {
-            // Give the new group an ID. Ignore whatever we're given, we're creating a new group.
-            newGroup.Id = Guid.NewGuid();
-            var groupTable = _tableClient.GetTableReference(newGroup.Id.ToString("N"));
-            await groupTable.CreateAsync();
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            // Filter on 'Users' and project only the RowKey, to speed up query.
+            TableQuery<TableEntityAdapter<UserEntity>> query = new TableQuery<TableEntityAdapter<UserEntity>>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, PartitionNames.User))
+                .Select(new List<string> { "RowKey" });
+            var results = await groupTable.ExecuteQueryAsync(query);
+            return results.Count();
+        }
 
-            var metadata = new GroupMetadata { Name = newGroup.Name, CreationTime = DateTime.UtcNow };
-            TableOperation addMetadataOp = TableOperation.Insert(new TableEntityAdapter<GroupMetadata>(metadata, PartitionNames.Metadata, PartitionNames.Metadata));
-            TableResult addMetadataResult = await groupTable.ExecuteAsync(addMetadataOp);
-            if (addMetadataResult.Result is TableEntityAdapter<GroupMetadata> groupMetaData)
+        private async Task<GroupMetadata> GetGroupMetadata(Guid groupId)
+        {
+            var groupTable = _tableClient.GetTableReference(groupId.ToIdString());
+            TableOperation getMetadataOp = TableOperation.Retrieve<TableEntityAdapter<GroupMetadata>>(PartitionNames.Metadata, PartitionNames.Metadata);
+            TableResult getResult = await groupTable.ExecuteAsync(getMetadataOp);
+            if (getResult.Result is TableEntityAdapter<GroupMetadata> metadata)
             {
-                await AddToGroupsList(newGroup);
-
-                _logger.LogInformation($"Group with ID {newGroup.Id} and name {newGroup.Name} added.");
-                return new Group
-                {
-                    Count = 0,
-                    CreationTime = groupMetaData.OriginalEntity.CreationTime,
-                    Id = Guid.Parse(groupMetaData.RowKey),
-                    Name = groupMetaData.OriginalEntity.Name
-                };
+                return metadata.OriginalEntity;
             }
             else
             {
-                await groupTable.DeleteAsync();
-                _logger.LogError($"Unable to add table named {newGroup.Name} to database.");
                 return null;
             }
         }
 
-        public async Task DeleteGroup(Guid groupId)
+        private async Task AddToUserGroups(Guid userId, Guid groupId, DateTime joinTime)
         {
-            var groupTable = _tableClient.GetTableReference(groupId.ToString("N"));
-            await groupTable.DeleteAsync(); // TODO: _can_ this fail? It can probably timeout, which likely throws an exception...
-            await DeleteFromGroupsList(groupId);
-            _logger.LogInformation($"Group with ID {groupId} deleted.");
+            var userTable = _tableClient.GetTableReference(userId.ToIdString());
+            await userTable.CreateIfNotExistsAsync();
+            TableOperation existsCheckOp = TableOperation.Retrieve(PartitionNames.Group, groupId.ToIdString());
+            TableResult existsResult = await userTable.ExecuteAsync(existsCheckOp);
+            if (existsResult.Result != null)
+            {
+                // Already exists, bail out.
+                return;
+            }
+
+            DynamicTableEntity entry = new DynamicTableEntity(PartitionNames.Group, groupId.ToIdString());
+            entry.Properties = new Dictionary<string, EntityProperty>
+            {
+                {"JoinTime", new EntityProperty(joinTime) }
+            };
+            TableOperation insertGroupOp = TableOperation.Insert(entry);
+            TableResult insertResult = await userTable.ExecuteAsync(insertGroupOp);
+            if (insertResult.HttpStatusCode != 204)
+            {
+                _logger.LogError($"Failed to add group {groupId} to user table for user {userId}. Status code: {insertResult.HttpStatusCode}");
+            }
         }
     }
 }

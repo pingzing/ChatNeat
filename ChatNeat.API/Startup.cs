@@ -1,4 +1,5 @@
 ﻿using ChatNeat.API.Database;
+using ChatNeat.API.Services;
 using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +13,7 @@ namespace ChatNeat.API
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
+            builder.Services.AddTransient<IChatService, ChatService>();
             builder.Services.AddScoped<IChatNeatTableClient, ChatNeatTableClient>(x =>
             {
                 var logger = x.GetService<ILogger<ChatNeatTableClient>>();

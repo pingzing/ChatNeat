@@ -1,20 +1,32 @@
-﻿using ChatNeat.Models;
+﻿using ChatNeat.API.Database;
+using ChatNeat.API.Database.Extensions;
+using ChatNeat.API.Services;
+using ChatNeat.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
 using System.Threading.Tasks;
+using System.Web.Http;
 
 namespace ChatNeat.API
 {
-    public static class SignalRFunctions
+    public class MessagingFunctions
     {
         private const string ChatHubName = "chatneat";
+        private readonly IChatService _chatService;
+        private readonly ILogger<MessagingFunctions> _logger;
+
+        public MessagingFunctions(IChatService chatService, ILogger<MessagingFunctions> logger)
+        {
+            _chatService = chatService;
+            _logger = logger;
+        }
 
         /// <summary>
         /// 
@@ -23,29 +35,28 @@ namespace ChatNeat.API
         /// <param name="info"></param>
         /// <returns></returns>
         [FunctionName("negotiate")]
-        public static SignalRConnectionInfo Negotiate(
+        public SignalRConnectionInfo Negotiate(
             [HttpTrigger(AuthorizationLevel.Anonymous)]HttpRequest req,
             [SignalRConnectionInfo(HubName = ChatHubName)]SignalRConnectionInfo info)
         {
             return info;
         }
 
-        // todo: message should contain user, timestamp and message
         [FunctionName("sendmessage")]
-        public static Task SendMessage(
+        public async Task<IActionResult> SendMessage(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]MessagePayload payload,
             [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRMessage> signalRMessages)
         {
-            // Store message in DB, and broadcast to all connected users in group.
-
-            return signalRMessages.AddAsync(
-                new SignalRMessage
-                {
-                    GroupName = payload.GroupId.ToString("N"),
-                    Target = "newMessage",
-                    Arguments = new[] { payload }
-                }
-            );
+            var signalRMessage = await _chatService.SendMessage(payload);
+            if (signalRMessage == null)
+            {
+                // TODO: do we need to be smarter in error checking here?
+                return new BadRequestResult();
+            }
+            await signalRMessages.AddAsync(signalRMessage);
+            return new OkResult();
         }
+
+
     }
 }
