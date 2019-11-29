@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace ChatNeat.Database.Entities
+namespace ChatNeat.API.Database.Entities
 {
-    internal class AllGroupsGroupEntry
+    public class AllGroupsGroupEntry
     {
         public string Name { get; set; }
         public int Count { get; set; }

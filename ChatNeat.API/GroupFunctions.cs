@@ -14,10 +14,10 @@ namespace ChatNeat.API
 
     public class GroupFunctions
     {
-        private readonly ITableClient _tableClient;
+        private readonly IChatNeatTableClient _tableClient;
         private readonly ILogger<GroupFunctions> _logger;
 
-        public GroupFunctions(ITableClient tableClient, ILogger<GroupFunctions> logger)
+        public GroupFunctions(IChatNeatTableClient tableClient, ILogger<GroupFunctions> logger)
         {
             _tableClient = tableClient;
             _logger = logger;

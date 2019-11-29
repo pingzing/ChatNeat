@@ -13,19 +13,17 @@ namespace ChatNeat.API.Database
     // Notes to self on resilience and performance:
     // Table Storage has a retry policy which, by default, retries most transient failures
     // (i.e., it won't retry a 404) with exponential backoff.
-    public class TableClient : ITableClient
+    public class ChatNeatTableClient : IChatNeatTableClient
     {
         private readonly CloudTableClient _tableClient;
-        private readonly ILogger<TableClient> _logger;
-
+        private readonly ILogger<ChatNeatTableClient> _logger;
 
         // Basic data model: each group is a table
         // each table contains a collection of UserEntities and MessageEntities
-        public TableClient(string connectionString, ILogger<TableClient> logger)
+        public ChatNeatTableClient(CloudTableClient tableClient, ILogger<ChatNeatTableClient> logger)
         {
             _logger = logger;
-            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(connectionString);
-            _tableClient = storageAccount.CreateCloudTableClient();
+            _tableClient = tableClient;
         }
 
         public async Task<IEnumerable<Group>> GetGroupList()

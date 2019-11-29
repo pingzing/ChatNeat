@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ChatNeat.Database.Extensions
+namespace ChatNeat.API.Database.Extensions
 {
     public static class CloudTableExtensions
     {

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace ChatNeat.API.Database
 {
-    public interface ITableClient
+    public interface IChatNeatTableClient
     {
         Task<IEnumerable<Group>> GetGroupList();
         Task<Group> AddGroup(Group newGroup);

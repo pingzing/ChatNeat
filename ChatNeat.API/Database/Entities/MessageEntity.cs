@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ChatNeat.Database.Entities
+namespace ChatNeat.API.Database.Entities
 {
     internal class MessageEntity
     {

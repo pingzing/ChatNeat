@@ -1,4 +1,5 @@
 ﻿using ChatNeat.API.Database;
+using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -11,11 +12,13 @@ namespace ChatNeat.API
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            builder.Services.AddScoped<ITableClient, TableClient>(x =>
+            builder.Services.AddScoped<IChatNeatTableClient, ChatNeatTableClient>(x =>
             {
-                var logger = x.GetService<ILogger<TableClient>>();
+                var logger = x.GetService<ILogger<ChatNeatTableClient>>();
                 string connectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage", EnvironmentVariableTarget.Process);
-                return new TableClient(connectionString, logger);
+                CloudStorageAccount storageAccount = CloudStorageAccount.Parse(connectionString);
+                var tableClient = storageAccount.CreateCloudTableClient();
+                return new ChatNeatTableClient(tableClient, logger);
             });
         }
     }
