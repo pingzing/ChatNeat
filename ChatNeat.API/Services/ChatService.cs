@@ -102,6 +102,7 @@ namespace ChatNeat.API.Services
             return new SignalRMessage
             {
                 GroupName = payload.GroupId.ToIdString(),
+                //UserId = payload.SenderId.ToIdString(),
                 Target = "newMessage",
                 Arguments = new[] { JsonConvert.SerializeObject(payload) }
             };

@@ -31,10 +31,19 @@ namespace ChatNeat.API
 
         [OpenApiOperation]
         [FunctionName("negotiate")]
-        public SignalRConnectionInfo Negotiate(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "get")]HttpRequest req,
-            [SignalRConnectionInfo(HubName = ChatHubName)]SignalRConnectionInfo info)
+        public async Task<SignalRConnectionInfo> Negotiate(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post")]HttpRequest req,
+            IBinder binder)
         {
+            // Force override of the SignalR user ID.
+            string userId = req.Headers["X-User-Id"];
+            SignalRConnectionInfoAttribute attribute = new SignalRConnectionInfoAttribute
+            {
+                HubName = ChatHubName,
+                UserId = userId
+            };
+            SignalRConnectionInfo info = await binder.BindAsync<SignalRConnectionInfo>(attribute);
+
             return info;
         }
 

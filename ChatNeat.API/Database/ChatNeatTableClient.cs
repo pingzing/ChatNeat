@@ -32,9 +32,6 @@ namespace ChatNeat.API.Database
      */
     public class ChatNeatTableClient : IChatNeatTableClient
     {
-        // Tables must begin with a letter. GUIDs don't always start with letters.
-        private const string TablePrefix = "T";
-
         // Business rule.
         public const uint MaxGroupSize = 20;
 
@@ -68,7 +65,7 @@ namespace ChatNeat.API.Database
 
         public async Task<IEnumerable<User>> GetUsers(Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             if (!(await groupTable.ExistsAsync()))
             {
                 _logger.LogError($"Could not find any group with ID {groupId}.");
@@ -90,7 +87,7 @@ namespace ChatNeat.API.Database
         {
             // Give the new group an ID. Ignore whatever we're given, we're creating a new group.
             Guid newGroupId = Guid.NewGuid();
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{newGroupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(newGroupId.ToTableString());
             await groupTable.CreateAsync();
 
             var metadata = new GroupMetadata { Name = newGroupName, CreationTime = DateTime.UtcNow };
@@ -119,7 +116,7 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> DeleteGroup(Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             if (!(await groupTable.ExistsAsync()))
             {
                 _logger.LogError($"Could not find any group with ID {groupId}.");
@@ -134,7 +131,7 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> AddUserToGroup(User user, Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             if (!(await groupTable.ExistsAsync()))
             {
                 _logger.LogError($"Could not find any group with ID {groupId}.");
@@ -180,7 +177,7 @@ namespace ChatNeat.API.Database
 
         public async Task<IEnumerable<Guid>> GetGroups(Guid userId)
         {
-            var userTable = _tableClient.GetTableReference($"{TablePrefix}{userId.ToIdString()}");
+            var userTable = _tableClient.GetTableReference(userId.ToTableString());
             if (!await userTable.ExistsAsync())
             {
                 _logger.LogError($"No user with the ID {userId} found.");
@@ -195,7 +192,7 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             if (!await groupTable.ExistsAsync())
             {
                 _logger.LogError($"Could not find any group with ID {groupId}.");
@@ -227,7 +224,7 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId)
         {
-            var userTable = _tableClient.GetTableReference($"{TablePrefix}{userId.ToIdString()}");
+            var userTable = _tableClient.GetTableReference(userId.ToTableString());
             if (!await userTable.ExistsAsync())
             {
                 _logger.LogError($"User table for {userId} does not exist.");
@@ -254,7 +251,7 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> StoreMessage(MessagePayload message)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{message.GroupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(message.GroupId.ToTableString());
             if (!(await groupTable.ExistsAsync()))
             {
                 _logger.LogError($"Could not find any group with ID {message.GroupId}.");
@@ -331,7 +328,7 @@ namespace ChatNeat.API.Database
 
         private async Task<int> GetGroupCount(Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             // Filter on 'Users' and project only the RowKey, to speed up query.
             TableQuery<TableEntityAdapter<UserEntity>> query = new TableQuery<TableEntityAdapter<UserEntity>>()
                 .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, PartitionNames.User))
@@ -342,7 +339,7 @@ namespace ChatNeat.API.Database
 
         private async Task<GroupMetadata> GetGroupMetadata(Guid groupId)
         {
-            var groupTable = _tableClient.GetTableReference($"{TablePrefix}{groupId.ToIdString()}");
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
             TableOperation getMetadataOp = TableOperation.Retrieve<TableEntityAdapter<GroupMetadata>>(PartitionNames.Metadata, PartitionNames.Metadata);
             TableResult getResult = await groupTable.ExecuteAsync(getMetadataOp);
             if (getResult.Result is TableEntityAdapter<GroupMetadata> metadata)
@@ -357,7 +354,7 @@ namespace ChatNeat.API.Database
 
         private async Task AddToUserGroups(Guid userId, Guid groupId, DateTime joinTime)
         {
-            var userTable = _tableClient.GetTableReference($"{TablePrefix}{userId.ToIdString()}");
+            var userTable = _tableClient.GetTableReference(userId.ToTableString());
             await userTable.CreateIfNotExistsAsync();
             TableOperation existsCheckOp = TableOperation.Retrieve(PartitionNames.Group, groupId.ToIdString());
             TableResult existsResult = await userTable.ExecuteAsync(existsCheckOp);
