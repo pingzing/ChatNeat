@@ -48,13 +48,13 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
-        [OpenApiRequestBody("application/json", typeof(MessagePayload))]
+        [OpenApiRequestBody("application/json", typeof(Message))]
         [FunctionName("sendmessage")]
         public async Task<IActionResult> SendMessage(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post")]MessagePayload payload,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post")]Message payload,
             [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRMessage> signalRMessages)
         {
-            var result = await _chatService.SendMessage(payload);
+            var result = await _chatService.StoreMessage(payload);
             IActionResult earlyReturn = result switch
             {
                 ServiceResult.Success => null,
@@ -66,7 +66,13 @@ namespace ChatNeat.API
             {
                 return earlyReturn;
             }
-            await signalRMessages.AddAsync(signalRMessage);
+
+            await signalRMessages.AddAsync(new SignalRMessage
+            {
+                Arguments = new object[] { payload },
+                GroupName = payload.GroupId.ToIdString(),
+                Target = SignalRMessages.NewMessage
+            });
             return new OkResult();
         }
 

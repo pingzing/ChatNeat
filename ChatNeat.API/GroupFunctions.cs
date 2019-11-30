@@ -9,6 +9,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -171,6 +172,53 @@ namespace ChatNeat.API
             }
 
             return new OkResult();
+        }
+
+        [OpenApiOperation]
+        [OpenApiParameter(name: "groupId", In = ParameterLocation.Path, Required = true, Type = typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.OK, "applicaiton/json", typeof(User[]))]
+        [FunctionName("getusers")]
+        public async Task<IActionResult> GetUsers(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getusers/{groupId}")]HttpRequest req,
+            string groupId)
+        {
+            if (!(Guid.TryParse(groupId, out Guid groupIdGuid)))
+            {
+                _logger.LogError($"Could not parse '{groupId}' as a GUID.");
+                return new BadRequestResult();
+            }
+
+            var users = await _chatService.GetUsers(groupIdGuid);
+            if (users == null)
+            {
+                // Could also be NotFound, but we don't know enough to guess at this point
+                return new BadRequestResult();
+            }
+
+            return new OkObjectResult(users.ToArray());
+        }
+
+        [OpenApiOperation]
+        [OpenApiParameter(name: "groupId", In = ParameterLocation.Path, Required = true, Type = typeof(string))]
+        [OpenApiResponseBody(HttpStatusCode.OK, "applicaiton/json", typeof(Message[]))]
+        [FunctionName("getmessages")]
+        public async Task<IActionResult> GetMessages(
+            [HttpTrigger]HttpRequest req,
+            string groupId)
+        {
+            if (!(Guid.TryParse(groupId, out Guid groupIdGuid)))
+            {
+                _logger.LogError($"Could not parse '{groupId}' as a GUID.");
+                return new BadRequestResult();
+            }
+
+            IEnumerable<Message> messages = await _chatService.GetMessages(groupIdGuid);
+            if (messages == null)
+            {
+                return new NotFoundResult();
+            }
+
+            return new OkObjectResult(messages.ToArray());
         }
     }
 }

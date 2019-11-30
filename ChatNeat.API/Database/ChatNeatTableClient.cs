@@ -17,8 +17,7 @@ namespace ChatNeat.API.Database
     // (i.e., it won't retry a 404) with exponential backoff.
     /*
      * Table layout (roughly):
-     *  ALLGROUPS
-        [AllGroups - TotalCount] - TotalCount
+     *  ALLGROUPS        
         [Group - <ID> ] - Name - Count - CreationTime
 
         GROUPID (guid)
@@ -250,7 +249,7 @@ namespace ChatNeat.API.Database
             return ServiceResult.Success;
         }
 
-        public async Task<ServiceResult> StoreMessage(MessagePayload message)
+        public async Task<ServiceResult> StoreMessage(Message message)
         {
             var groupTable = _tableClient.GetTableReference(message.GroupId.ToTableString());
             if (!(await groupTable.ExistsAsync()))
@@ -271,7 +270,8 @@ namespace ChatNeat.API.Database
             Guid messageId = Guid.NewGuid();
             var messageEntity = new TableEntityAdapter<MessageEntity>(new MessageEntity
             {
-                Contents = message.Message,
+                SenderId = message.SenderId,
+                Contents = message.Contents,
                 Timestamp = DateTime.UtcNow
             }, PartitionNames.Message, messageId.ToIdString());
             TableOperation insertOp = TableOperation.Insert(messageEntity);
@@ -283,6 +283,28 @@ namespace ChatNeat.API.Database
             }
 
             return ServiceResult.Success;
+        }
+
+        public async Task<IEnumerable<Message>> GetMessages(Guid groupId)
+        {
+            var groupTable = _tableClient.GetTableReference(groupId.ToTableString());
+            if (!(await groupTable.ExistsAsync()))
+            {
+                _logger.LogError($"Could not find any group with ID {groupId}.");
+                return null;
+            }
+
+            TableQuery<TableEntityAdapter<MessageEntity>> getMessagesQuery = new TableQuery<TableEntityAdapter<MessageEntity>>()
+                .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, PartitionNames.Message));
+            // Perf warning here: this definitely gets too large once message history gets too long
+            return (await groupTable.ExecuteQueryAsync(getMessagesQuery))
+                .Select(x => new Message
+                {
+                    Contents = x.OriginalEntity.Contents,
+                    GroupId = groupId,
+                    SenderId = x.OriginalEntity.SenderId,
+                    Timestamp = x.OriginalEntity.Timestamp
+                });
         }
 
         private async Task AddOrUpdateToGroupsList(GroupMetadata group, Guid groupId, int count)

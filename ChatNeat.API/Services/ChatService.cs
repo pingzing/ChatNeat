@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ChatNeat.API.Database;
-using ChatNeat.API.Database.Extensions;
 using ChatNeat.Models;
-using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 
 namespace ChatNeat.API.Services
 {
@@ -79,6 +76,11 @@ namespace ChatNeat.API.Services
 
         }
 
+        public Task<IEnumerable<User>> GetUsers(Guid groupId)
+        {
+            return _tableClient.GetUsers(groupId);
+        }
+
         public Task<ServiceResult> AddUserToGroup(User user, Guid groupId)
         {
             return _tableClient.AddUserToGroup(user, groupId);
@@ -89,10 +91,15 @@ namespace ChatNeat.API.Services
             return _tableClient.LeaveGroup(userId, groupId);
         }
 
-        public async Task<ServiceResult> SendMessage(MessagePayload payload)
+        public async Task<ServiceResult> StoreMessage(Message payload)
         {
             // This will do DB things. The calling function will handle SignalR things.
             return await _tableClient.StoreMessage(payload);
+        }
+
+        public Task<IEnumerable<Message>> GetMessages(Guid groupId)
+        {
+            return _tableClient.GetMessages(groupId);
         }
     }
 }
