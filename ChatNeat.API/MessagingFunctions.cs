@@ -54,11 +54,17 @@ namespace ChatNeat.API
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]MessagePayload payload,
             [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRMessage> signalRMessages)
         {
-            var signalRMessage = await _chatService.SendMessage(payload);
-            if (signalRMessage == null)
+            var result = await _chatService.SendMessage(payload);
+            IActionResult earlyReturn = result switch
             {
-                // TODO: do we need to be smarter in error checking here?
-                return new BadRequestResult();
+                ServiceResult.Success => null,
+                ServiceResult.NotFound => new NotFoundResult(),
+                ServiceResult.ServerError => new InternalServerErrorResult(),
+                _ => new InternalServerErrorResult()
+            };
+            if (earlyReturn != null)
+            {
+                return earlyReturn;
             }
             await signalRMessages.AddAsync(signalRMessage);
             return new OkResult();

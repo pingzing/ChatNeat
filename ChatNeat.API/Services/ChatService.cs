@@ -89,23 +89,10 @@ namespace ChatNeat.API.Services
             return _tableClient.LeaveGroup(userId, groupId);
         }
 
-        public async Task<SignalRMessage> SendMessage(MessagePayload payload)
+        public async Task<ServiceResult> SendMessage(MessagePayload payload)
         {
-            // Do DB things, then...
-            var success = await _tableClient.StoreMessage(payload);
-            if (success != ServiceResult.Success)
-            {
-                return null;
-            }
-
-            // return SignalR stuff
-            return new SignalRMessage
-            {
-                GroupName = payload.GroupId.ToIdString(),
-                //UserId = payload.SenderId.ToIdString(),
-                Target = "newMessage",
-                Arguments = new[] { JsonConvert.SerializeObject(payload) }
-            };
+            // This will do DB things. The calling function will handle SignalR things.
+            return await _tableClient.StoreMessage(payload);
         }
     }
 }

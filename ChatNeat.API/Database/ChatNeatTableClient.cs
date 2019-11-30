@@ -2,6 +2,7 @@
 using ChatNeat.API.Database.Extensions;
 using ChatNeat.API.Services;
 using ChatNeat.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.Cosmos.Table;
 using Microsoft.Extensions.Logging;
 using System;
@@ -162,7 +163,7 @@ namespace ChatNeat.API.Database
                 }, PartitionNames.User, user.Id.ToIdString());
             TableOperation addUser = TableOperation.Insert(userEntity);
             TableResult addResult = await groupTable.ExecuteAsync(addUser);
-            if (addResult.HttpStatusCode != 204)
+            if (addResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Unable to add user {user.Name}-{user.Id} to group {groupId}. Result code: {addResult.HttpStatusCode}");
                 return ServiceResult.ServerError;
@@ -209,7 +210,7 @@ namespace ChatNeat.API.Database
 
             TableOperation deleteUserOp = TableOperation.Delete(user);
             TableResult deleteResult = await groupTable.ExecuteAsync(deleteUserOp);
-            if (deleteResult.HttpStatusCode != 204)
+            if (deleteResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Failed to remove user {user.OriginalEntity.Name}-{userId} from group with ID {groupId}. Status code: {deleteResult.HttpStatusCode}");
                 return ServiceResult.ServerError;
@@ -240,7 +241,7 @@ namespace ChatNeat.API.Database
 
             TableOperation deleteOp = TableOperation.Delete(entity);
             TableResult deleteResult = await userTable.ExecuteAsync(deleteOp);
-            if (deleteResult.HttpStatusCode != 204)
+            if (deleteResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Failed to delete group {groupId} from user {userId}. Status code: {deleteResult.HttpStatusCode}");
                 return ServiceResult.ServerError;
@@ -275,7 +276,7 @@ namespace ChatNeat.API.Database
             }, PartitionNames.Message, messageId.ToIdString());
             TableOperation insertOp = TableOperation.Insert(messageEntity);
             TableResult insertResult = await groupTable.ExecuteAsync(insertOp);
-            if (insertResult.HttpStatusCode != 204)
+            if (insertResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Failed to add message from sender {message.SenderId} to group {message.GroupId}. Status code: {insertResult.HttpStatusCode}");
                 return ServiceResult.ServerError;
@@ -315,7 +316,7 @@ namespace ChatNeat.API.Database
             {
                 TableOperation deleteOperation = TableOperation.Delete(groupEntry);
                 TableResult deleteResult = await allGroupsTable.ExecuteAsync(deleteOperation);
-                if (deleteResult.HttpStatusCode != 204)
+                if (deleteResult.HttpStatusCode != StatusCodes.Status204NoContent)
                 {
                     _logger.LogError($"Located, but could not delete, group entry with ID {groupId} from the groups list. Status code: {deleteResult.HttpStatusCode}");
                 }
@@ -371,7 +372,7 @@ namespace ChatNeat.API.Database
             };
             TableOperation insertGroupOp = TableOperation.Insert(entry);
             TableResult insertResult = await userTable.ExecuteAsync(insertGroupOp);
-            if (insertResult.HttpStatusCode != 204)
+            if (insertResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Failed to add group {groupId} to user table for user {userId}. Status code: {insertResult.HttpStatusCode}");
             }
