@@ -7,7 +7,7 @@ namespace ChatNeat.API.Database.Entities
         public Guid SenderId { get; set; }
         public string SenderName { get; set; }
         public string Contents { get; set; }
-        public DateTimeOffset Timestamp { get; set; }
+        public DateTimeOffset SentTimestamp { get; set; }
 
         // Note: With these four properties, Contents would still fit into a Table Storage
         // entity with a max of around 500,000 characters. (provided SenderName is short)

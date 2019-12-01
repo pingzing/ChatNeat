@@ -286,7 +286,7 @@ namespace ChatNeat.API.Database
             {
                 SenderId = message.SenderId,
                 Contents = message.Contents,
-                Timestamp = message.Timestamp,
+                SentTimestamp = message.Timestamp,
                 SenderName = message.SenderName,
             }, PartitionNames.Message, messageId.ToIdString());
             TableOperation insertOp = TableOperation.Insert(messageEntity);
@@ -318,7 +318,7 @@ namespace ChatNeat.API.Database
                     Contents = x.OriginalEntity.Contents,
                     GroupId = groupId,
                     SenderId = x.OriginalEntity.SenderId,
-                    Timestamp = x.OriginalEntity.Timestamp,
+                    Timestamp = x.OriginalEntity.SentTimestamp,
                     SenderName = x.OriginalEntity.SenderName,
                 });
         }
