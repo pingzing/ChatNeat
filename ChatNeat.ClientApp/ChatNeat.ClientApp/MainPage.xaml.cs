@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Xamarin.Essentials;
 using Xamarin.Forms;
 
 namespace ChatNeat.ClientApp
@@ -18,48 +19,102 @@ namespace ChatNeat.ClientApp
     [DesignTimeVisible(false)]
     public partial class MainPage : ContentPage
     {
-        private HubConnection connection;
-        private HttpClient _httpClient = new HttpClient();
+        private ChatServiceClient _chatService;
 
         public MainPage()
         {
             InitializeComponent();
+            _chatService = ((App)Application.Current).ChatService;
         }
 
-        protected override void OnAppearing()
+        protected override async void OnAppearing()
         {
             base.OnAppearing();
-            connection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:7071/api/", options =>
-                {
-                    options.Headers.Add("X-User-Id", "664e40d2-d0d8-448a-a59b-444225de3cba");
-                })
-                .Build();
+            Guid userId = _chatService.UserId;
+            Title = $"User ID: {userId.ToString("N")}";
+            UsernameLabel.Text = $"Username: {_chatService.Username}";
+            await _chatService.Initialize();
         }
 
-        private async void Button_Clicked(object sender, EventArgs e)
+        private async void GetGroups_Clicked(object sender, EventArgs e)
         {
-            connection.On<Message>(SignalRMessages.NewMessage, OnMessageReceived);
+            await UpdateGroups();
+        }
 
-            try
+        private async Task UpdateGroups()
+        {
+            var groups = await _chatService.GetGroups();
+            GroupsList.ItemsSource = groups.ToList();
+        }
+
+        private void ChangeUsername_Clicked(object sender, EventArgs e)
+        {
+            void Submit_Clicked(object s, EventArgs args)
             {
-                await connection.StartAsync();
-                // Reconnect this user to their signalr users:
-                var response = await _httpClient.PostAsync("http://localhost:7071/api/reconnect", new StringContent("664e40d2-d0d8-448a-a59b-444225de3cba"));
-                if (!response.IsSuccessStatusCode)
+                string text = InputPrompt.Text;
+                _chatService.Username = text;
+                UsernameLabel.Text = $"Username: {_chatService.Username}";
+                InputPanel.IsVisible = false;
+            }
+
+            SubmitButton.Clicked += Submit_Clicked;
+            InputPanel.IsVisible = true;
+        }
+
+        private void CreateGroup_Clicked(object sender, EventArgs e)
+        {
+            async void Submit_Clicked(object s, EventArgs args)
+            {
+                string text = InputPrompt.Text;
+                InputPanel.IsVisible = false;
+                Group newGroup = await _chatService.CreateGroup(text);
+                if (newGroup != null)
                 {
-                    Debug.WriteLine("Failed to reconnect SignalR groups.");
+                    await UpdateGroups();
                 }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-            }
+
+            SubmitButton.Clicked += Submit_Clicked;
+            InputPanel.IsVisible = true;
         }
 
-        private void OnMessageReceived(Message arg1)
+        private async void GroupsList_ItemsSelected(object sender, SelectedItemChangedEventArgs e)
         {
-            Debug.WriteLine($"{arg1}");
+            Group selectedGroup = e.SelectedItem as Group;
+            if (selectedGroup == null)
+            {
+                return;
+            }
+
+            bool success = await _chatService.JoinGroup(
+                new User { Id = _chatService.UserId, Name = _chatService.Username },
+                selectedGroup.Id);
+
+            if (!success)
+            {
+                return;
+            }
+
+            await this.Navigation.PushAsync(new ChatRoomPage(selectedGroup));
+        }
+
+        private async void CopyUserId_Clicked(object sender, EventArgs e)
+        {
+            await Clipboard.SetTextAsync(_chatService.UserId.ToString("N"));
+        }
+
+        private async void GroupDelete_Clicked(object sender, EventArgs e)
+        {
+            MenuItem menuItem = sender as MenuItem;
+            Group group = menuItem?.BindingContext as Group;
+            if (group != null)
+            {
+                bool success = await _chatService.DeleteGroup(group.Id);
+                if (success)
+                {
+                    await UpdateGroups();
+                }
+            }
         }
     }
 }

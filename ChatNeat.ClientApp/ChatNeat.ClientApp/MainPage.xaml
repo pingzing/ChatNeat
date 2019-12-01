@@ -4,11 +4,60 @@
              xmlns:d="http://xamarin.com/schemas/2014/forms/design"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
+             
+             xmlns:models="clr-namespace:ChatNeat.Models;assembly=ChatNeat.Models"
+             
              x:Class="ChatNeat.ClientApp.MainPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-    <StackLayout>
-        <!-- Place new controls here -->
-        <Button Text="Connect to SignalR" Clicked="Button_Clicked"/>
-    </StackLayout>
+        <Label x:Name="UsernameLabel"/>
+
+        <ListView x:Name="GroupsList" Grid.Row="1"
+                  ItemSelected="GroupsList_ItemsSelected">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="models:Group">
+                    <ViewCell>
+                        <Grid HorizontalOptions="Fill">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Label Text="{Binding Name}"/>
+                            <Label Grid.Column="1" Text="{Binding CreationTime, StringFormat='Created: {0:d}'}" HorizontalOptions="End" HorizontalTextAlignment="End"/>
+                            <Label Grid.Row="1" Text="{Binding Id, StringFormat='ID: {0}'}"/>
+                            <Label Grid.Row="1" Grid.Column="1" Text="{Binding Count, StringFormat='Users: {0}/20'}" HorizontalOptions="End" HorizontalTextAlignment="End"/>
+                        </Grid>
+                        <ViewCell.ContextActions>
+                            <MenuItem Text="Delete" Clicked="GroupDelete_Clicked"/>
+                        </ViewCell.ContextActions>
+                    </ViewCell>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <StackLayout x:Name="InputPanel" Grid.Row="2" Orientation="Horizontal" IsVisible="False" >
+            <Editor x:Name="InputPrompt" AutoSize="TextChanges" HorizontalOptions="FillAndExpand"/>
+            <Button x:Name="SubmitButton" Text=" > "/>
+        </StackLayout>
+        
+        <ScrollView Grid.Row="3" HeightRequest="50" Orientation="Horizontal">
+            <StackLayout Orientation="Horizontal">
+                <Button Text="Copy User ID" Clicked="CopyUserId_Clicked"/>
+                <Button Text="Get groups" Clicked="GetGroups_Clicked"/>
+                <Button Text="Create group" Clicked="CreateGroup_Clicked"/>
+                <Button Text="Change username" Clicked="ChangeUsername_Clicked"/>
+            </StackLayout>
+        </ScrollView>
+    </Grid>
 
 </ContentPage>

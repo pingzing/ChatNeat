@@ -6,11 +6,15 @@ namespace ChatNeat.ClientApp
 {
     public partial class App : Application
     {
+        public ChatServiceClient ChatService { get; set; }
+        public NavigationPage NavigationPage { get; private set; }
+
         public App()
         {
             InitializeComponent();
-
-            MainPage = new MainPage();
+            ChatService = new ChatServiceClient("https://chatneat.azurewebsites.net/");
+            NavigationPage = new NavigationPage(new MainPage());
+            MainPage = NavigationPage;
         }
 
         protected override void OnStart()

@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:d="http://xamarin.com/schemas/2014/forms/design"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"             
+             mc:Ignorable="d"
+             
+             xmlns:models="clr-namespace:ChatNeat.Models;assembly=ChatNeat.Models"
+             
+             x:Class="ChatNeat.ClientApp.ChatRoomPage">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="7*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+            
+            <ListView x:Name="MessagesList" Grid.Column="0">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Message">
+                        <ViewCell>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Label Grid.Row="0">
+                                    <Label.FormattedText>
+                                        <FormattedString>
+                                            <Span Text="{Binding SenderName}" FontAttributes="Bold"/>
+                                            <Span Text="{Binding Timestamp, StringFormat='{0}'}" FontSize="Micro"/>
+                                        </FormattedString>
+                                    </Label.FormattedText>
+                                </Label>
+                                <Label Grid.Row="1" Text="{Binding Contents}" LineBreakMode="WordWrap"/>
+                            </Grid>
+                        </ViewCell>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            
+            <ListView x:Name="UsersList" Grid.Column="1">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:User">
+                        <ViewCell>
+                            <Label Text="{Binding Name}"/>
+                            <ViewCell.ContextActions>
+                                <MenuItem Text="Kick" Clicked="UserKick_Clicked"/>
+                            </ViewCell.ContextActions>
+                        </ViewCell>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+
+        <StackLayout Orientation="Horizontal" Grid.Row="1">
+            <Editor x:Name="Editor" 
+                    AutoSize="TextChanges" 
+                    HorizontalOptions="FillAndExpand" />
+            <Button x:Name="SubmitButton" Text=" > " Clicked="SubmitButton_Clicked"/>
+        </StackLayout>
+        
+    </Grid>
+    
+</ContentPage>
+
