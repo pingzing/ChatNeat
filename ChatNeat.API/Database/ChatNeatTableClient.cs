@@ -252,9 +252,14 @@ namespace ChatNeat.API.Database
 
         public async Task<ServiceResult> StoreMessage(Message message)
         {
+            if (message.Contents == null)
+            {
+                _logger.LogError($"Message contents cannot be null.");
+                return ServiceResult.InvalidArguments;
+            }
             if (message.Contents.Length > MessageEntity.MaxMessageSize)
             {
-                _logger.LogError($"Message payload is too large. It was {message.Contents.Length}, but the max size is {MessageEntity.MaxMessageSize}");
+                _logger.LogError($"Message contents are too large. It was {message.Contents.Length}, but the max size is {MessageEntity.MaxMessageSize}");
                 return ServiceResult.InvalidArguments;
             }
             var groupTable = _tableClient.GetTableReference(message.GroupId.ToTableString());

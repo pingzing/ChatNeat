@@ -20,7 +20,7 @@ namespace ChatNeat.API.Tests.TableClientTests
         {
             Mock.Get(_mockCloudTable).Setup(x => x.ExistsAsync()).ReturnsAsync(false);
 
-            ServiceResult result = await _tableClient.StoreMessage(new Message());
+            ServiceResult result = await _tableClient.StoreMessage(new Message { Contents = "Test!" });
             Assert.AreEqual(ServiceResult.NotFound, result);
         }
 
@@ -32,7 +32,7 @@ namespace ChatNeat.API.Tests.TableClientTests
                 It.Is<TableOperation>(y => y.OperationType == TableOperationType.Retrieve))
             ).ReturnsAsync(new TableResult());
 
-            ServiceResult result = await _tableClient.StoreMessage(new Message());
+            ServiceResult result = await _tableClient.StoreMessage(new Message { Contents = "Test!" });
             Assert.AreEqual(ServiceResult.NotFound, result);
         }
 
@@ -51,8 +51,27 @@ namespace ChatNeat.API.Tests.TableClientTests
                 It.Is<TableOperation>(y => y.OperationType == TableOperationType.Insert))
             ).ReturnsAsync(new TableResult { HttpStatusCode = StatusCodes.Status400BadRequest });
 
-            ServiceResult result = await _tableClient.StoreMessage(new Message());
+            ServiceResult result = await _tableClient.StoreMessage(new Message { Contents = "Test!" });
             Assert.AreEqual(ServiceResult.ServerError, result);
+        }
+
+        [TestMethod]
+        public async Task ShouldReturnSuccessOnSuccess()
+        {
+            Mock.Get(_mockCloudTable).Setup(x => x.ExistsAsync()).ReturnsAsync(true);
+            Mock.Get(_mockCloudTable).Setup(x => x.ExecuteAsync(
+                It.Is<TableOperation>(y => y.OperationType == TableOperationType.Retrieve))
+            ).ReturnsAsync(new TableResult
+            {
+                Result = new TableEntityAdapter<UserEntity>()
+            });
+
+            Mock.Get(_mockCloudTable).Setup(x => x.ExecuteAsync(
+                It.Is<TableOperation>(y => y.OperationType == TableOperationType.Insert))
+            ).ReturnsAsync(new TableResult { HttpStatusCode = StatusCodes.Status204NoContent });
+
+            ServiceResult result = await _tableClient.StoreMessage(new Message { Contents = "Test!" });
+            Assert.AreEqual(ServiceResult.Success, result);
         }
     }
 }
