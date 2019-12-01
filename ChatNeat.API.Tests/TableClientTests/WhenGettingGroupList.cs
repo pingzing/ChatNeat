@@ -69,6 +69,7 @@ namespace ChatNeat.API.Tests.TableClientTests
                 }
             }).ToList();
 
+            Mock.Get(_mockCloudTable).Setup(x => x.CreateIfNotExistsAsync()).ReturnsAsync(true);
             Mock.Get(_mockCloudTable).SetupSequence(x => x.ExecuteQuerySegmentedAsync(
                 It.IsAny<TableQuery<TableEntityAdapter<AllGroupsGroupEntry>>>(), It.IsAny<TableContinuationToken>()))
                 .ReturnsAsync(GetMockTableQuerySegment(_groupEntries, true))

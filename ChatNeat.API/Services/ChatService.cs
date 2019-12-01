@@ -92,8 +92,7 @@ namespace ChatNeat.API.Services
         }
 
         public async Task<ServiceResult> StoreMessage(Message payload)
-        {
-            // This will do DB things. The calling function will handle SignalR things.
+        {            
             return await _tableClient.StoreMessage(payload);
         }
 

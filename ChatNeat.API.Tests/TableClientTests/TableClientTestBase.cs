@@ -24,6 +24,8 @@ namespace ChatNeat.API.Tests.TableClientTests
         {
             var mockCloudTable = new Mock<CloudTable>(MockBehavior.Strict, new object[] { new Uri("http://fakeurl.com"), null });
             _mockCloudTable = mockCloudTable.Object;
+            Mock.Get(_mockCloudTable).Setup(x => x.CreateAsync()).Returns(Task.CompletedTask);
+            Mock.Get(_mockCloudTable).Setup(x => x.DeleteAsync()).Returns(Task.CompletedTask);
 
             var mockTableClient = new Mock<CloudTableClient>(MockBehavior.Strict, new object[]
             {

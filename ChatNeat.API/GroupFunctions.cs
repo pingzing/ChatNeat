@@ -55,6 +55,10 @@ namespace ChatNeat.API
         public async Task<IActionResult> CreateGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "post")]string newGroupName)
         {
+            if (string.IsNullOrWhiteSpace(newGroupName))
+            {
+                return new BadRequestResult();
+            }
             Group addedGroup = await _chatService.CreateGroup(newGroupName);
             if (addedGroup == null)
             {
