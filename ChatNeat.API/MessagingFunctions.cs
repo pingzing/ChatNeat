@@ -60,6 +60,7 @@ namespace ChatNeat.API
                 ServiceResult.Success => null,
                 ServiceResult.NotFound => new NotFoundResult(),
                 ServiceResult.ServerError => new InternalServerErrorResult(),
+                ServiceResult.InvalidArguments => new BadRequestResult(),
                 _ => new InternalServerErrorResult()
             };
             if (earlyReturn != null)
