@@ -23,7 +23,7 @@ steps:
   inputs:
     command: 'publish'
     publishWebProjects: false
-    projects: 'CheatNeat.API/*.csproj'
+    projects: 'ChatNeat.API/*.csproj'
     arguments: '--configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory)'
     modifyOutputPath: false
     
