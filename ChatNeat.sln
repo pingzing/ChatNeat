@@ -9,11 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatNeat.ClientApp.UWP", "C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatNeat.ClientApp.Android", "ChatNeat.ClientApp\ChatNeat.ClientApp.Android\ChatNeat.ClientApp.Android.csproj", "{81BA9DE0-4BCF-447D-95FC-D6D4AF2209F2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatNeat.ClientApp", "ChatNeat.ClientApp\ChatNeat.ClientApp\ChatNeat.ClientApp.csproj", "{31FDEDE5-29DD-4373-BDA0-90B504B42EA5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatNeat.ClientApp", "ChatNeat.ClientApp\ChatNeat.ClientApp\ChatNeat.ClientApp.csproj", "{31FDEDE5-29DD-4373-BDA0-90B504B42EA5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatNeat.Models", "ChatNeat.Models\ChatNeat.Models.csproj", "{8D6BCCEB-8C83-442D-8D1F-79F09E1AC06B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatNeat.Models", "ChatNeat.Models\ChatNeat.Models.csproj", "{8D6BCCEB-8C83-442D-8D1F-79F09E1AC06B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatNeat.API.Tests", "ChatNeat.API.Tests\ChatNeat.API.Tests.csproj", "{358C6AAE-4A16-4CAA-A514-8B873EFFC598}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatNeat.API.Tests", "ChatNeat.API.Tests\ChatNeat.API.Tests.csproj", "{358C6AAE-4A16-4CAA-A514-8B873EFFC598}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{558BC08C-8B3F-4658-9690-9BFD1944BD19}"
 	ProjectSection(SolutionItems) = preProject
