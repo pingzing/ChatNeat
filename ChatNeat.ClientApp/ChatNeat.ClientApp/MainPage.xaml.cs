@@ -47,20 +47,6 @@ namespace ChatNeat.ClientApp
             GroupsList.ItemsSource = groups.ToList();
         }
 
-        private void ChangeUsername_Clicked(object sender, EventArgs e)
-        {
-            void Submit_Clicked(object s, EventArgs args)
-            {
-                string text = InputPrompt.Text;
-                _chatService.Username = text;
-                UsernameLabel.Text = $"Username: {_chatService.Username}";
-                InputPanel.IsVisible = false;
-            }
-
-            SubmitButton.Clicked += Submit_Clicked;
-            InputPanel.IsVisible = true;
-        }
-
         private void CreateGroup_Clicked(object sender, EventArgs e)
         {
             async void Submit_Clicked(object s, EventArgs args)
@@ -115,6 +101,37 @@ namespace ChatNeat.ClientApp
                     await UpdateGroups();
                 }
             }
+        }
+
+        private void ChangeUsername_Clicked(object sender, EventArgs e)
+        {
+            void Submit_Clicked(object s, EventArgs args)
+            {
+                string text = InputPrompt.Text;
+                _chatService.Username = text;
+                UsernameLabel.Text = $"Username: {_chatService.Username}";
+                InputPanel.IsVisible = false;
+            }
+
+            SubmitButton.Clicked += Submit_Clicked;
+            InputPanel.IsVisible = true;
+        }
+
+        private void ChangeUserId_Clicked(object sender, EventArgs e)
+        {
+            void Submit_Clicked(object s, EventArgs args)
+            {
+                string text = InputPrompt.Text;
+                if (Guid.TryParse(text, out Guid guidId))
+                {
+                    _chatService.UserId = guidId;
+                    Title = $"User ID: {_chatService.UserId.ToString("N")}";
+                }
+                InputPanel.IsVisible = false;
+            }
+
+            SubmitButton.Clicked += Submit_Clicked;
+            InputPanel.IsVisible = true;
         }
     }
 }

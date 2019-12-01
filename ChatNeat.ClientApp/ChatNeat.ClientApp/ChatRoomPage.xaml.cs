@@ -69,7 +69,10 @@ namespace ChatNeat.ClientApp
 
         private void ChatService_MessageReceived(object sender, Message e)
         {
-            MainThread.BeginInvokeOnMainThread(() => _messages.Add(e));
+            if (e.GroupId == _group.Id)
+            {
+                MainThread.BeginInvokeOnMainThread(() => _messages.Add(e));
+            }
         }
 
         private async void UserKick_Clicked(object sender, EventArgs e)
