@@ -80,6 +80,11 @@ namespace ChatNeat.API
 
             // Speedup opportunity here: Transform into a bunch of tasks, do Task.WhenAll
             IEnumerable<Group> groups = await _chatService.GetUserMembership(userIdGuid);
+            if (groups == null)
+            {
+                _logger.LogError($"User with ID {userId} unable to reconnect; doesn't seem to be in any groups.");
+                return new BadRequestResult();
+            }
             foreach (var action in groups.Select(x => new SignalRGroupAction
             {
                 Action = GroupAction.Add,
