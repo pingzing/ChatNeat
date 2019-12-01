@@ -4,7 +4,14 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
 trigger:
-- master
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - '/ChatNeat.API'
+    - '/ChatNeat.Models'
+    - 'azure-pipelines.yml'
 
 pool:
   vmImage: 'ubuntu-latest'
