@@ -207,7 +207,7 @@ namespace ChatNeat.API
         [OpenApiResponseBody(HttpStatusCode.OK, "applicaiton/json", typeof(Message[]))]
         [FunctionName("getmessages")]
         public async Task<IActionResult> GetMessages(
-            [HttpTrigger]HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "getmessages/{groupId}")]HttpRequest req,
             string groupId)
         {
             if (!(Guid.TryParse(groupId, out Guid groupIdGuid)))
