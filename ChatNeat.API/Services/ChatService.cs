@@ -91,8 +91,8 @@ namespace ChatNeat.API.Services
             return _tableClient.LeaveGroup(userId, groupId);
         }
 
-        public async Task<ServiceResult> StoreMessage(Message payload)
-        {            
+        public async Task<Message> StoreMessage(Message payload)
+        {
             return await _tableClient.StoreMessage(payload);
         }
 

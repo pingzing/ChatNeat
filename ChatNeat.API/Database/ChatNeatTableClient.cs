@@ -60,7 +60,8 @@ namespace ChatNeat.API.Database
             {
                 Id = Guid.Parse(x.RowKey),
                 Count = x.OriginalEntity.Count,
-                Name = x.OriginalEntity.Name
+                Name = x.OriginalEntity.Name,
+                CreationTime = x.OriginalEntity.CreationTime,
             });
         }
 
@@ -250,50 +251,53 @@ namespace ChatNeat.API.Database
             return ServiceResult.Success;
         }
 
-        public async Task<ServiceResult> StoreMessage(Message message)
+        public async Task<Message> StoreMessage(Message message)
         {
             if (message.Contents == null)
             {
                 _logger.LogError($"Message contents cannot be null.");
-                return ServiceResult.InvalidArguments;
+                return null;
             }
             if (message.Contents.Length > MessageEntity.MaxMessageSize)
             {
                 _logger.LogError($"Message contents are too large. It was {message.Contents.Length}, but the max size is {MessageEntity.MaxMessageSize}");
-                return ServiceResult.InvalidArguments;
+                return null;
             }
             var groupTable = _tableClient.GetTableReference(message.GroupId.ToTableString());
             if (!await groupTable.ExistsAsync())
             {
                 _logger.LogError($"Could not find any group with ID {message.GroupId}.");
-                return ServiceResult.NotFound;
+                return null;
             }
 
             // Make sure the user belongs to the group
             TableOperation getUserOp = TableOperation.Retrieve<TableEntityAdapter<UserEntity>>(PartitionNames.User, message.SenderId.ToIdString());
             TableResult getUserResult = await groupTable.ExecuteAsync(getUserOp);
-            if (!(getUserResult.Result is TableEntityAdapter<UserEntity>))
+            if (!(getUserResult.Result is TableEntityAdapter<UserEntity> user))
             {
                 _logger.LogError($"User ID {message.SenderId} does not belong to group ID {message.GroupId}.");
-                return ServiceResult.NotFound;
+                return null;
             }
 
             Guid messageId = Guid.NewGuid();
+            message.Timestamp = DateTime.UtcNow;
+            message.SenderName = user.OriginalEntity.Name;
             var messageEntity = new TableEntityAdapter<MessageEntity>(new MessageEntity
             {
                 SenderId = message.SenderId,
                 Contents = message.Contents,
-                Timestamp = DateTime.UtcNow
+                Timestamp = message.Timestamp,
+                SenderName = message.SenderName,
             }, PartitionNames.Message, messageId.ToIdString());
             TableOperation insertOp = TableOperation.Insert(messageEntity);
             TableResult insertResult = await groupTable.ExecuteAsync(insertOp);
             if (insertResult.HttpStatusCode != StatusCodes.Status204NoContent)
             {
                 _logger.LogError($"Failed to add message from sender {message.SenderId} to group {message.GroupId}. Status code: {insertResult.HttpStatusCode}");
-                return ServiceResult.ServerError;
+                return null;
             }
 
-            return ServiceResult.Success;
+            return message;
         }
 
         public async Task<IEnumerable<Message>> GetMessages(Guid groupId)
@@ -314,7 +318,8 @@ namespace ChatNeat.API.Database
                     Contents = x.OriginalEntity.Contents,
                     GroupId = groupId,
                     SenderId = x.OriginalEntity.SenderId,
-                    Timestamp = x.OriginalEntity.Timestamp
+                    Timestamp = x.OriginalEntity.Timestamp,
+                    SenderName = x.OriginalEntity.SenderName,
                 });
         }
 

@@ -14,7 +14,7 @@ namespace ChatNeat.API.Services
         Task<Group> CreateGroup(string newGroupName);
         Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId);
         Task<IEnumerable<User>> DeleteGroup(Guid groupId);
-        Task<ServiceResult> StoreMessage(Message payload);
+        Task<Message> StoreMessage(Message payload);
         Task<IEnumerable<Message>> GetMessages(Guid groupId);
     }
 }

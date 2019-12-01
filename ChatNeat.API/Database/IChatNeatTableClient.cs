@@ -29,7 +29,7 @@ namespace ChatNeat.API.Database
         Task<IEnumerable<Guid>> GetGroups(Guid userId);
         Task<ServiceResult> LeaveGroup(Guid userId, Guid groupId);
         Task<ServiceResult> RemoveFromUserGroups(Guid userId, Guid groupId);
-        Task<ServiceResult> StoreMessage(Message message);
+        Task<Message> StoreMessage(Message message);
         Task<IEnumerable<Message>> GetMessages(Guid groupId);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Aliencube.AzureFunctions.Extensions.OpenApi.Attributes;
-using ChatNeat.API.Database;
 using ChatNeat.API.Database.Extensions;
 using ChatNeat.API.Services;
 using ChatNeat.Models;
@@ -10,6 +9,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Azure.WebJobs.Extensions.SignalRService;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +22,6 @@ namespace ChatNeat.API
 
     public class GroupFunctions
     {
-        private const string ChatHubName = "chatneat";
         private readonly IChatService _chatService;
         private readonly ILogger<GroupFunctions> _logger;
 
@@ -32,7 +31,7 @@ namespace ChatNeat.API
             _logger = logger;
         }
 
-        [OpenApiOperation]
+        [OpenApiOperation(Summary = "Gets a list of all groups.")]
         [OpenApiResponseBody(HttpStatusCode.OK, "application/json", typeof(Group[]))]
         [FunctionName("getgroupslist")]
         public async Task<IActionResult> GetGroupsList(
@@ -76,7 +75,7 @@ namespace ChatNeat.API
         [FunctionName("deletegroup")]
         public async Task<IActionResult> DeleteGroup(
             [HttpTrigger(AuthorizationLevel.Anonymous, "delete")]string groupId,
-            [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRGroupAction> groupActions)
+            [SignalR(HubName = Constants.ChatHubName)]IAsyncCollector<SignalRGroupAction> groupActions)
         {
             if (!Guid.TryParse(groupId, out Guid groupIdGuid))
             {
@@ -108,7 +107,7 @@ namespace ChatNeat.API
         [FunctionName("joingroup")]
         public async Task<IActionResult> JoinGroup(
              [HttpTrigger(AuthorizationLevel.Anonymous, "post")]JoinGroupRequest request,
-             [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRGroupAction> groupActions)
+             [SignalR(HubName = Constants.ChatHubName)]IAsyncCollector<SignalRGroupAction> groupActions)
         {
             var success = await _chatService.AddUserToGroup(request.User, request.GroupId);
 
@@ -151,34 +150,6 @@ namespace ChatNeat.API
         }
 
         [OpenApiOperation]
-        [FunctionName("reconnect")]
-        public async Task<IActionResult> ReconnectToGroups(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post")]string userId,
-            [SignalR(HubName = ChatHubName)]IAsyncCollector<SignalRGroupAction> groupActions)
-        {
-            if (!(Guid.TryParse(userId, out Guid userIdGuid)))
-            {
-                _logger.LogError($"Could not parse '{userId}' as a GUID.");
-                return new BadRequestResult();
-            }
-
-            // Speedup opportunity here: Transform into a bunch of tasks, do Task.WhenAll
-            IEnumerable<Group> groups = await _chatService.GetUserMembership(userIdGuid);
-            foreach (var action in groups.Select(x => new SignalRGroupAction
-            {
-                Action = GroupAction.Add,
-                GroupName = x.Id.ToIdString(),
-                UserId = userIdGuid.ToIdString(),
-            }
-            ))
-            {
-                await groupActions.AddAsync(action);
-            }
-
-            return new OkResult();
-        }
-
-        [OpenApiOperation]
         [OpenApiParameter(name: "groupId", In = ParameterLocation.Path, Required = true, Type = typeof(string))]
         [OpenApiResponseBody(HttpStatusCode.OK, "applicaiton/json", typeof(User[]))]
         [FunctionName("getusers")]
@@ -200,6 +171,32 @@ namespace ChatNeat.API
             }
 
             return new OkObjectResult(users.ToArray());
+        }
+
+        [OpenApiOperation]
+        [OpenApiRequestBody("application/json", typeof(Message))]
+        [FunctionName("sendmessage")]
+        public async Task<IActionResult> SendMessage(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post")]HttpRequest req,
+            [SignalR(HubName = Constants.ChatHubName)]IAsyncCollector<SignalRMessage> signalRMessages)
+        {
+            string messageBody = await req.ReadAsStringAsync();
+            Message payload = JsonConvert.DeserializeObject<Message>(messageBody);
+
+            Message filledPayload = await _chatService.StoreMessage(payload);
+            if (payload == null)
+            {
+                // Lots of other failure modes here, but no way to know which one we hit.
+                return new BadRequestResult();
+            }
+
+            await signalRMessages.AddAsync(new SignalRMessage
+            {
+                Arguments = new object[] { payload },
+                GroupName = payload.GroupId.ToIdString(),
+                Target = SignalRMessages.NewMessage
+            });
+            return new OkResult();
         }
 
         [OpenApiOperation]

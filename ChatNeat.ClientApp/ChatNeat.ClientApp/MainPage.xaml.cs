@@ -32,20 +32,20 @@ namespace ChatNeat.ClientApp
             connection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:7071/api/", options =>
                 {
-                    options.Headers.Add("X-User-Id", "3fa85f6457174562b3fc2c963f66afa6");
+                    options.Headers.Add("X-User-Id", "664e40d2-d0d8-448a-a59b-444225de3cba");
                 })
                 .Build();
         }
 
         private async void Button_Clicked(object sender, EventArgs e)
         {
-            connection.On<string>("newMessage", OnMessageReceived);
+            connection.On<Message>(SignalRMessages.NewMessage, OnMessageReceived);
 
             try
             {
                 await connection.StartAsync();
                 // Reconnect this user to their signalr users:
-                var response = await _httpClient.PostAsync("http://localhost:7071/api/reconnect", new StringContent("3fa85f6457174562b3fc2c963f66afa6"));
+                var response = await _httpClient.PostAsync("http://localhost:7071/api/reconnect", new StringContent("664e40d2-d0d8-448a-a59b-444225de3cba"));
                 if (!response.IsSuccessStatusCode)
                 {
                     Debug.WriteLine("Failed to reconnect SignalR groups.");
@@ -57,7 +57,7 @@ namespace ChatNeat.ClientApp
             }
         }
 
-        private void OnMessageReceived(string arg1)
+        private void OnMessageReceived(Message arg1)
         {
             Debug.WriteLine($"{arg1}");
         }
