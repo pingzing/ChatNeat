@@ -152,7 +152,7 @@ namespace ChatNeat.API.Database
                 return ServiceResult.ServerError;
             }
 
-            // User added. Update group count in AllGroups table
+            // User added. Do bookkeeping
             GroupMetadata metadata = await GetGroupMetadata(groupId);
             await AddOrUpdateToGroupsList(metadata, groupId, groupCount + 1);
             await AddToUserGroups(user.Id, groupId, DateTime.UtcNow);
