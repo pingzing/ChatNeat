@@ -194,6 +194,7 @@ ClientBin/
 *.dbproj.schemaview
 *.jfm
 *.pfx
+!*ChatNeat.ClientApp.UWP_TemporaryKey.pfx
 *.publishsettings
 node_modules/
 orleans.codegen.cs

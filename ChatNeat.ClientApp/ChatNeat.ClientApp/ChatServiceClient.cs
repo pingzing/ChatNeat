@@ -66,6 +66,7 @@ namespace ChatNeat.ClientApp
         private Task Connection_Closed(Exception arg)
         {
             Debug.WriteLine($"SignalR connection closed: {arg}. Reconnecting...");
+            _connection.Remove(SignalRMessages.NewMessage);
             return Connect();
         }
 
