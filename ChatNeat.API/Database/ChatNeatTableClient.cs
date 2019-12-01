@@ -15,21 +15,6 @@ namespace ChatNeat.API.Database
     // Notes to self on resilience and performance:
     // Table Storage has a retry policy which, by default, retries most transient failures
     // (i.e., it won't retry a 404) with exponential backoff.
-    /*
-     * Table layout (roughly):
-     *  ALLGROUPS        
-        [Group - <ID> ] - Name - Count - CreationTime
-
-        GROUPID (guid)
-        [ Metadata - Metadata ] - Name - CreationTime
-        [ User - <ID> ] - Name - LastSeenTime
-          ...etc...
-        [ Message - <ID> ] - Contents - Timestamp
-         ...etc...
- 
-         USERID (guid)
-         [ Group - <GroupId> ]
-     */
     public class ChatNeatTableClient : IChatNeatTableClient
     {
         // Business rule.
@@ -38,8 +23,6 @@ namespace ChatNeat.API.Database
         private readonly CloudTableClient _tableClient;
         private readonly ILogger<ChatNeatTableClient> _logger;
 
-        // Basic data model: each group is a table
-        // each table contains a collection of UserEntities and MessageEntities
         public ChatNeatTableClient(CloudTableClient tableClient, ILogger<ChatNeatTableClient> logger)
         {
             _logger = logger;
@@ -87,7 +70,6 @@ namespace ChatNeat.API.Database
 
         public async Task<Group> CreateGroup(string newGroupName)
         {
-            // Give the new group an ID. Ignore whatever we're given, we're creating a new group.
             Guid newGroupId = Guid.NewGuid();
             var groupTable = _tableClient.GetTableReference(newGroupId.ToTableString());
             await groupTable.CreateAsync();
